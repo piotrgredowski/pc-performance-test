@@ -1,18 +1,32 @@
 import argparse
 import json
-import os
+
+# NOTE: These three modules can modify the system state and should be used with caution.
+#       Confirm that the operations are safe before running them.
+import os  # NOTE: not safe, verify usage
 import pathlib
 import platform
 import shutil
 import subprocess
-import sys
 import tempfile
 import time
+import typing
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
 from functools import lru_cache
 from typing import Dict, List, Optional
+from urllib.parse import urlencode
+
+
+class ComputerInfo(typing.TypedDict):
+    os: str
+    os_version: str
+    cpu: str
+    commit: str
+    timestamp: str
+    cli_args: Optional[Dict]
+    additional_info: Optional[str]
 
 
 @dataclass
@@ -21,6 +35,39 @@ class PerformanceMetric:
     duration_seconds: float
     timestamp: datetime
     additional_info: Optional[dict] = None
+
+
+def build_issue_content(*, results: Dict[str, typing.Any], total_time: float) -> str:
+    computer_info = get_computer_info()
+
+    labels: List[str] = [computer_info["os"]]
+
+    if total_time < 10:
+        labels.append("fast")
+    elif total_time < 100:
+        labels.append("slow")
+    else:
+        labels.append("very-slow")
+
+    separator = ";"
+    title = f"{computer_info['os']} {separator} {computer_info['cpu']} {separator} {total_time:.2f}s {separator} {get_run_name()}"
+    labels_str = ",".join(labels)
+    body = f"""
+```json
+{json.dumps(results, indent=4)}
+```
+"""
+
+    query_params = {
+        "title": title,
+        "body": body,
+        "labels": labels_str,
+    }
+    return urlencode(query_params)
+
+
+def get_link_for_issue(github_repo_url: str, issue_content: str) -> str:
+    return f"{github_repo_url}/issues/new?{issue_content}"
 
 
 def get_user_name() -> str:
@@ -57,21 +104,25 @@ def get_git_version_string(repo_path: str = ".") -> str:
         return "not-from-git-repo"
 
 
-def get_computer_info(additional_info: Optional[str] = None) -> Dict:
-    info = {
+def get_computer_info(
+    *,
+    additional_info: Optional[str] = None,
+    args: Optional[argparse.Namespace] = None,
+) -> ComputerInfo:
+    cli_args = vars(args) if args else None
+    info: ComputerInfo = {
         "os": platform.system(),
         "os_version": platform.version(),
         "cpu": platform.processor(),
         "commit": get_git_version_string(str(pathlib.Path(__file__).parent)),
         "timestamp": get_run_name(),
-        "cli_args": sys.argv[1:],
+        "cli_args": cli_args,
+        "additional_info": additional_info,
     }
-    if additional_info:
-        info["additional_info"] = additional_info
     return info
 
 
-def print_computer_info(info: Dict):
+def print_computer_info(info: ComputerInfo):
     print("\nComputer Info:")
     for key, value in info.items():
         print(f"{key}: {value}")
@@ -131,7 +182,7 @@ class PerformanceTest:
     def print_results(self, total_time: Optional[float] = None):
         total_time = total_time or self.get_total_time()
 
-        print(f"\n{self.title} Results:")
+        print(f"# {self.title} Results:")
         print("-" * 50)
 
         combined = defaultdict(list)
@@ -149,7 +200,7 @@ class PerformanceTest:
             percentage_of_total = operation_time / total_time * 100
 
             print(
-                f"{suffix}: {operation_time:.8f} seconds ({percentage_of_total:.2f}%)\n[{bar}]\n"
+                f">>> {suffix}: {operation_time:.8f} seconds ({percentage_of_total:.2f}%)\n[{bar}]\n"
             )
         print("-" * 50)
 
@@ -172,12 +223,21 @@ class PerformanceTest:
         return result
 
     @classmethod
-    def save_results_json(cls, metrics_results: List[Dict], computer_info: List[Dict]):
-        # Convert datetime objects to strings
-
+    def get_results_dict(
+        cls, metrics_results: List[Dict], computer_info: ComputerInfo
+    ) -> Dict[str, typing.Any]:
         for result in metrics_results:
             if "timestamp" in result and isinstance(result["timestamp"], datetime):
                 result["timestamp"] = result["timestamp"].isoformat()
+
+        return {
+            "results": metrics_results,
+            "computer_info": computer_info,
+        }
+
+    @classmethod
+    def save_results_json(cls, results: Dict[str, typing.Any]):
+        # Convert datetime objects to strings
 
         performance_test = cls()
 
@@ -187,12 +247,10 @@ class PerformanceTest:
         )
 
         path_to_file.parent.mkdir(parents=True, exist_ok=True)
+
         with path_to_file.open("w") as f:
             json.dump(
-                {
-                    "results": metrics_results,
-                    "computer_info": computer_info,
-                },
+                results,
                 f,
                 indent=4,
             )
@@ -236,7 +294,8 @@ class GitOperationsTest(PerformanceTest):
                 if result.stdout.strip() == self.repo_url:
                     return
             except subprocess.CalledProcessError:
-                # Not a git repo or other error, remove and re-clone
+                # NOTE: Here script is removing cloned repository if it exists and then cloning
+                # it again. This is done to make sure that the cloned repo is in a clean state.
                 shutil.rmtree(self.repo_path)
         subprocess.run(["git", "clone", self.repo_url, self.repo_path], check=True)
 
@@ -425,6 +484,12 @@ def parse_args():
         type=str,
         help="Additional information to include in results",
     )
+    parser.add_argument(
+        "--github-repo-url",
+        type=str,
+        help="Github repo url",
+        default="https://github.com/piotrgredowski/pc-performance-test",
+    )
     return parser.parse_args()
 
 
@@ -462,10 +527,10 @@ def main():
 
     print(f"\nTotal time: {total_time:.8f} seconds")
 
-    computer_info = get_computer_info(args.additional_info)
+    computer_info = get_computer_info(additional_info=args.additional_info, args=args)
     print_computer_info(computer_info)
 
-    results = (
+    all_operations_results = (
         [{"operation_name": "Total Time", "duration_seconds": total_time}]
         + git_test.get_results_dicts()
         + file_test.get_results_dicts()
@@ -473,9 +538,24 @@ def main():
         + memory_test.get_results_dicts()
     )
 
-    PerformanceTest.save_results_json(
-        metrics_results=results,
-        computer_info=[computer_info],
+    results_dict = PerformanceTest.get_results_dict(
+        metrics_results=all_operations_results, computer_info=computer_info
+    )
+
+    PerformanceTest.save_results_json(results_dict)
+
+    issue_content = build_issue_content(results=results_dict, total_time=total_time)
+    issue_url = get_link_for_issue(
+        github_repo_url=args.github_repo_url,
+        issue_content=issue_content,
+    )
+
+    print(
+        "\n" + "-" * 50,
+        "\nYou can create an Github issue with your results by opening below link in your browser:",
+        "\n" + "-" * 50,
+        f"\n{issue_url}",
+        "\n" + "-" * 50,
     )
 
 

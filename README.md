@@ -13,8 +13,15 @@ This project is designed to measure the performance of Git, File, CPU, and Memor
 
 It doesn't require any dependencies, just run the script.
 
-You can
+You can clone the repository and run the script:
 
+```bash
+git clone https://github.com/piotrgredowski/pc-performance-test.git
+cd pc-performance-test
+python main.py -i "your additional information about your computer"
+```
+
+Or you can recreate `main.py` file on your local disk and then just run it.
 
 To run the tests, use the following command:
 
