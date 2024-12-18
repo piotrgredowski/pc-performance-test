@@ -1,3 +1,5 @@
+[![Run performance test](https://github.com/piotrgredowski/pc-performance-test/actions/workflows/run-performance-test.yaml/badge.svg)](https://github.com/piotrgredowski/pc-performance-test/actions/workflows/run-performance-test.yaml)
+
 # Performance Test for Git, File, CPU, and Memory Operations
 
 This project is designed to measure the performance of Git, File, CPU, and Memory operations. It provides a comprehensive set of tests to evaluate the efficiency of these operations in different scenarios.
