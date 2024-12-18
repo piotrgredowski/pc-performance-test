@@ -1,0 +1,21 @@
+# Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
+_commit: 52bde04
+_src_path: https://github.com/piotrgredowski/yet-another-python-project-template
+author_email: piotrgredowski@gmail.com
+author_name: Piotr Grędowski
+ci_provider: github
+get_newest_version_of_libraries_from_web: true
+project_layout: one_file
+project_name: pc-performance-test
+python_version: '3.12'
+required_dependencies_version:
+    mdformat: 0.7.19
+    mypy: 1.13.0
+    pre-commit: 4.0.1
+    ruff: 0.8.3
+should_ask_for_dependencies: false
+should_freeze_dependencies: false
+use_mypy: true
+use_precommit: true
+use_ruff: true
+use_uv: true

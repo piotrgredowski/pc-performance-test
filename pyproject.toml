@@ -1,13 +1,23 @@
+
 [project]
-name = "pc-performance-test"
+name = "pc_performance_test"
 version = "0.1.0"
-description = "Add your description here"
+authors = [{ name = "Piotr Grędowski", email = "piotrgredowski@gmail.com" }]
+description = "pc-performance-test"
 readme = "README.md"
-requires-python = ">=3.12.0"
+requires-python = ">=3.12"
+classifiers = ["Programming Language :: Python :: 3.12"]
 dependencies = []
 
 [dependency-groups]
+
 dev = [
-    "mypy>=1.13.0",
-    "ruff>=0.8.2",
+  "mypy>=1.13.0",
+  "pre-commit>=4.0.1",
+  "pytest>=8.3.4",
+  "pytest-cov>=6.0.0",
+  "pytest-pretty>=1.2.0",
+  "pytest-randomly>=3.16.0",
+  "pytest-xdist>=3.6.1",
+  "ruff>=0.8.3",
 ]

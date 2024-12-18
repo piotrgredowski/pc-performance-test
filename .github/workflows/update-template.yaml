@@ -1,0 +1,39 @@
+name: Update Copier Template
+
+on:
+  workflow_dispatch:
+
+jobs:
+  update-template:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install the latest version of uv and set the python version
+        uses: astral-sh/setup-uv@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install Copier and required dependencies
+        run: uv sync
+
+      - name: Update Copier Template
+        run: |
+          uv run copier recopy . \
+            --skip-answered \
+            -a .copier-answers.main.yaml \
+            --trust \
+            --overwrite \
+            --skip .ruff.toml \
+            --skip .github/workflows
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          title: 'Update Copier Template'
+          branch: 'update-copier-template'
+          base: 'main'
+          commit-message: 'chore: update copier template'
+          delete-branch: true
