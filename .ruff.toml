@@ -2,8 +2,21 @@ extend = ".ruff.base.toml"
 
 # NOTE: Here you can override the configuration from the extended file.
 fix = true
+target-version = "py39"
 
 [lint]
-extend-ignore = []
+extend-ignore = [
+    "D",
+    "T201",
+    "ANN",
+    "BLE",
+    "PERF",
+    "PTH",
+    "E",
+    "PLR",
+    "S",
+    "TRY",
+    "ISC001",
+]
 
 [lint.extend-per-file-ignores]

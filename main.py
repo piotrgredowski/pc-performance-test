@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import argparse
 import json
 
@@ -13,9 +15,9 @@ import time
 import typing
 from collections import defaultdict
 from dataclasses import dataclass
+from datetime import UTC
 from datetime import datetime
 from functools import lru_cache
-from typing import Dict, List, Optional
 from urllib.parse import urlencode
 
 
@@ -25,8 +27,8 @@ class ComputerInfo(typing.TypedDict):
     cpu: str
     commit: str
     timestamp: str
-    cli_args: Optional[Dict]
-    additional_info: Optional[str]
+    cli_args: dict | None
+    additional_info: str | None
 
 
 @dataclass
@@ -34,13 +36,13 @@ class PerformanceMetric:
     operation_name: str
     duration_seconds: float
     timestamp: datetime
-    additional_info: Optional[dict] = None
+    additional_info: dict | None = None
 
 
-def build_issue_content(*, results: Dict[str, typing.Any], total_time: float) -> str:
+def build_issue_content(*, results: dict[str, typing.Any], total_time: float) -> str:
     computer_info = get_computer_info()
 
-    labels: List[str] = [computer_info["os"]]
+    labels: list[str] = [computer_info["os"]]
 
     if total_time < 10:
         labels.append("fast")
@@ -94,9 +96,7 @@ def get_git_version_string(repo_path: str = ".") -> str:
         is_dirty = len(status_output.strip()) > 0
 
         # Format the version string
-        version_string = f"{commit_hash}+{'dirty' if is_dirty else 'clean'}"
-
-        return version_string
+        return f"{commit_hash}+{'dirty' if is_dirty else 'clean'}"
 
     except subprocess.CalledProcessError:
         return "not-from-git-repo"
@@ -106,8 +106,8 @@ def get_git_version_string(repo_path: str = ".") -> str:
 
 def get_computer_info(
     *,
-    additional_info: Optional[str] = None,
-    args: Optional[argparse.Namespace] = None,
+    additional_info: str | None = None,
+    args: argparse.Namespace | None = None,
 ) -> ComputerInfo:
     cli_args = vars(args) if args else None
     info: ComputerInfo = {
@@ -130,10 +130,10 @@ def print_computer_info(info: ComputerInfo):
 
 @lru_cache(maxsize=128)
 def get_run_name() -> str:
-    return f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+    return f"{datetime.now(tz=UTC).strftime('%Y-%m-%d_%H-%M-%S')}"
 
 
-def get_results_file_name(custom_filename: Optional[str] = None) -> str:
+def get_results_file_name(custom_filename: str | None = None) -> str:
     if custom_filename:
         return custom_filename
     os_name = get_computer_info()["os"].lower()
@@ -143,17 +143,15 @@ def get_results_file_name(custom_filename: Optional[str] = None) -> str:
 class PerformanceTest:
     def __init__(
         self,
-        base_dir: Optional[str] = None,
+        base_dir: str | None = None,
         title: str = "Performance Test",
-        output_dir: Optional[str] = None,
+        output_dir: str | None = None,
     ):
         self.title = title
         self.base_dir = base_dir or tempfile.mkdtemp()
         self.metrics: list[PerformanceMetric] = []
         self.results_directory: pathlib.Path = (
-            pathlib.Path(output_dir)
-            if output_dir
-            else pathlib.Path(__file__).parent / "_results"
+            pathlib.Path(output_dir) if output_dir else pathlib.Path(__file__).parent / "_results"
         )
 
     def get_total_time(self) -> float:
@@ -170,7 +168,7 @@ class PerformanceTest:
                 metric = PerformanceMetric(
                     operation_name=operation_name,
                     duration_seconds=end_time - start_time,
-                    timestamp=datetime.now(),
+                    timestamp=datetime.now(tz=UTC),
                 )
                 self.metrics.append(metric)
                 return result
@@ -179,7 +177,7 @@ class PerformanceTest:
 
         return decorator
 
-    def print_results(self, total_time: Optional[float] = None):
+    def print_results(self, total_time: float | None = None):
         total_time = total_time or self.get_total_time()
 
         print(f"# {self.title} Results:")
@@ -204,7 +202,7 @@ class PerformanceTest:
             )
         print("-" * 50)
 
-    def get_results_dicts(self) -> List[Dict]:
+    def get_results_dicts(self) -> list[dict]:
         combined = defaultdict(list)
         for metric in self.metrics:
             combined[metric.operation_name].append(metric)
@@ -214,9 +212,7 @@ class PerformanceTest:
             result.append(
                 {
                     "operation_name": operation_name,
-                    "duration_seconds": sum(
-                        metric.duration_seconds for metric in metrics
-                    ),
+                    "duration_seconds": sum(metric.duration_seconds for metric in metrics),
                     "count": len(metrics),
                 }
             )
@@ -224,8 +220,8 @@ class PerformanceTest:
 
     @classmethod
     def get_results_dict(
-        cls, metrics_results: List[Dict], computer_info: ComputerInfo
-    ) -> Dict[str, typing.Any]:
+        cls, metrics_results: list[dict], computer_info: ComputerInfo
+    ) -> dict[str, typing.Any]:
         for result in metrics_results:
             if "timestamp" in result and isinstance(result["timestamp"], datetime):
                 result["timestamp"] = result["timestamp"].isoformat()
@@ -236,7 +232,7 @@ class PerformanceTest:
         }
 
     @classmethod
-    def save_results_json(cls, results: Dict[str, typing.Any]):
+    def save_results_json(cls, results: dict[str, typing.Any]):
         # Convert datetime objects to strings
 
         performance_test = cls()
@@ -262,12 +258,10 @@ class GitOperationsTest(PerformanceTest):
     def __init__(
         self,
         repo_url: str,
-        base_dir: Optional[str] = None,
-        output_dir: Optional[str] = None,
+        base_dir: str | None = None,
+        output_dir: str | None = None,
     ):
-        super().__init__(
-            title="Git Operations", base_dir=base_dir, output_dir=output_dir
-        )
+        super().__init__(title="Git Operations", base_dir=base_dir, output_dir=output_dir)
         self.repo_url = repo_url
         self.target_commit_hash = "f9514ac4b263be971c50f7e0f719b7a6d361e192"
 
@@ -336,12 +330,8 @@ class GitOperationsTest(PerformanceTest):
 
         for commit_hash in commit_hashes:
             try:
-                subprocess.run(
-                    ["git", "revert", "--no-commit", commit_hash], check=True
-                )
-                subprocess.run(
-                    ["git", "commit", "-m", f'Revert "{commit_hash}"'], check=True
-                )
+                subprocess.run(["git", "revert", "--no-commit", commit_hash], check=True)
+                subprocess.run(["git", "commit", "-m", f'Revert "{commit_hash}"'], check=True)
             except subprocess.CalledProcessError:
                 print(f"Failed to revert commit {commit_hash}, skipping...")
                 subprocess.run(["git", "revert", "--abort"], check=False)
@@ -361,19 +351,15 @@ class GitOperationsTest(PerformanceTest):
 
 
 class FileOperationsTest(PerformanceTest):
-    def __init__(
-        self, base_dir: Optional[str] = None, output_dir: Optional[str] = None
-    ):
-        super().__init__(
-            title="File Operations", base_dir=base_dir, output_dir=output_dir
-        )
+    def __init__(self, base_dir: str | None = None, output_dir: str | None = None):
+        super().__init__(title="File Operations", base_dir=base_dir, output_dir=output_dir)
         self._test_files: list[str] = []
 
     @PerformanceTest.measure_operation("Create 10000 Files")
-    def create_multiple_files(self, count: int = 10000) -> List[str]:
+    def create_multiple_files(self, count: int = 10000) -> list[str]:
         created_files = []
         for i in range(count):
-            content = f"This is test file {i}\nIt contains some test content.\nLine 3 of the file.\nCreated at: {datetime.now()}"
+            content = f"This is test file {i}\nIt contains some test content.\nLine 3 of the file.\nCreated at: {datetime.now(tz=UTC)}"
             file_path = os.path.join(self.base_dir, f"test_file_{i}.txt")
             with open(file_path, "w") as f:
                 f.write(content)
@@ -417,12 +403,8 @@ class FileOperationsTest(PerformanceTest):
 
 
 class CPUTest(PerformanceTest):
-    def __init__(
-        self, base_dir: Optional[str] = None, output_dir: Optional[str] = None
-    ):
-        super().__init__(
-            title="CPU Operations", base_dir=base_dir, output_dir=output_dir
-        )
+    def __init__(self, base_dir: str | None = None, output_dir: str | None = None):
+        super().__init__(title="CPU Operations", base_dir=base_dir, output_dir=output_dir)
 
     @PerformanceTest.measure_operation("Prime Numbers")
     def calculate_primes(self, up_to=100000):
@@ -437,16 +419,12 @@ class CPUTest(PerformanceTest):
 
 
 class MemoryTest(PerformanceTest):
-    def __init__(
-        self, base_dir: Optional[str] = None, output_dir: Optional[str] = None
-    ):
-        super().__init__(
-            title="Memory Operations", base_dir=base_dir, output_dir=output_dir
-        )
+    def __init__(self, base_dir: str | None = None, output_dir: str | None = None):
+        super().__init__(title="Memory Operations", base_dir=base_dir, output_dir=output_dir)
 
     @PerformanceTest.measure_operation("Large Array Allocation")
     def allocate_large_array(self, size=10000000):
-        return [i for i in range(size)]
+        return list(range(size))
 
     @PerformanceTest.measure_operation("Dictionary Operations")
     def dictionary_operations(self, size=1000000):
@@ -462,9 +440,7 @@ class MemoryTest(PerformanceTest):
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(
-        description="Run performance tests and save results"
-    )
+    parser = argparse.ArgumentParser(description="Run performance tests and save results")
     parser.add_argument(
         "--output-dir",
         "-o",
@@ -530,13 +506,13 @@ def main():
     computer_info = get_computer_info(additional_info=args.additional_info, args=args)
     print_computer_info(computer_info)
 
-    all_operations_results = (
-        [{"operation_name": "Total Time", "duration_seconds": total_time}]
-        + git_test.get_results_dicts()
-        + file_test.get_results_dicts()
-        + cpu_test.get_results_dicts()
-        + memory_test.get_results_dicts()
-    )
+    all_operations_results = [
+        {"operation_name": "Total Time", "duration_seconds": total_time},
+        *git_test.get_results_dicts(),
+        *file_test.get_results_dicts(),
+        *cpu_test.get_results_dicts(),
+        *memory_test.get_results_dicts(),
+    ]
 
     results_dict = PerformanceTest.get_results_dict(
         metrics_results=all_operations_results, computer_info=computer_info
