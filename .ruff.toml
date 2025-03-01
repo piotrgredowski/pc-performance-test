@@ -17,6 +17,7 @@ extend-ignore = [
     "S",
     "TRY",
     "ISC001",
+    "DTZ005",
 ]
 
 [lint.extend-per-file-ignores]
