@@ -330,7 +330,9 @@ class GitOperationsTest(PerformanceTest):
         for commit_hash in commit_hashes:
             try:
                 subprocess.run(["git", "revert", "--no-commit", commit_hash], check=True)
-                subprocess.run(["git", "commit", "--no-verify", "-m", f'Revert "{commit_hash}"'], check=True)
+                subprocess.run(
+                    ["git", "commit", "--no-verify", "-m", f'Revert "{commit_hash}"'], check=True
+                )
             except subprocess.CalledProcessError:
                 print(f"Failed to revert commit {commit_hash}, skipping...")
                 subprocess.run(["git", "revert", "--abort"], check=False)
