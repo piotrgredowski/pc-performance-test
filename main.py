@@ -15,7 +15,6 @@ import time
 import typing
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import UTC
 from datetime import datetime
 from functools import lru_cache
 from urllib.parse import urlencode
@@ -130,7 +129,7 @@ def print_computer_info(info: ComputerInfo):
 
 @lru_cache(maxsize=128)
 def get_run_name() -> str:
-    return f"{datetime.now(tz=UTC).strftime('%Y-%m-%d_%H-%M-%S')}"
+    return f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
 
 
 def get_results_file_name(custom_filename: str | None = None) -> str:
@@ -168,7 +167,7 @@ class PerformanceTest:
                 metric = PerformanceMetric(
                     operation_name=operation_name,
                     duration_seconds=end_time - start_time,
-                    timestamp=datetime.now(tz=UTC),
+                    timestamp=datetime.now(),
                 )
                 self.metrics.append(metric)
                 return result
@@ -359,7 +358,7 @@ class FileOperationsTest(PerformanceTest):
     def create_multiple_files(self, count: int = 10000) -> list[str]:
         created_files = []
         for i in range(count):
-            content = f"This is test file {i}\nIt contains some test content.\nLine 3 of the file.\nCreated at: {datetime.now(tz=UTC)}"
+            content = f"This is test file {i}\nIt contains some test content.\nLine 3 of the file.\nCreated at: {datetime.now()}"
             file_path = os.path.join(self.base_dir, f"test_file_{i}.txt")
             with open(file_path, "w") as f:
                 f.write(content)
